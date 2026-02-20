@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  role          String    @default("AGENT") // BROKER or AGENT
+  phone         String?
+  licenseNumber String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  clients      Client[]
+  transactions Transaction[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  notes        String?
+  agentId      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agent        User          @relation(fields: [agentId], references: [id])
+  transactions Transaction[]
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  clientId        String
+  agentId         String
+  type            String    // PURCHASE or SALE
+  status          String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  currentStage    String    @default("DUE_DILIGENCE")
+  propertyAddress String
+  propertyCity    String?
+  propertyState   String?
+  propertyZip     String?
+  purchasePrice   Float?
+  closingDate     DateTime?
+  mlsNumber       String?
+  escrowNumber    String?
+  notes           String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  driveFolder     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client         Client              @relation(fields: [clientId], references: [id])
+  agent          User                @relation(fields: [agentId], references: [id])
+  stages         TransactionStage[]
+  documents      Document[]
+  emailCampaigns EmailCampaign[]
+  tasks          Task[]
+}
+
+model TransactionStage {
+  id            String    @id @default(cuid())
+  transactionId String
+  stageName     String
+  status        String    @default("PENDING") // PENDING, ACTIVE, COMPLETED
+  startDate     DateTime?
+  endDate       DateTime?
+  notes         String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  transactionId String
+  name          String
+  originalName  String
+  fileType      String?
+  fileSize      Int?
+  category      String   @default("SUPPORTING") // PURCHASE, DISCLOSURE, SUPPORTING, MISCELLANEOUS
+  filePath      String?
+  driveFileId   String?
+  driveUrl      String?
+  uploadedById  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model EmailCampaign {
+  id             String    @id @default(cuid())
+  transactionId  String
+  stage          String
+  subject        String
+  body           String
+  recipientEmail String
+  recipientName  String
+  status         String    @default("PENDING") // PENDING, SENT, FAILED
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  transactionId String
+  title         String
+  description   String?
+  dueDate       DateTime?
+  completed     Boolean   @default(false)
+  completedAt   DateTime?
+  assignedTo    String?
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
